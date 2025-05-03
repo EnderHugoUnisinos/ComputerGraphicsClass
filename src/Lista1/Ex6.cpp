@@ -1,28 +1,3 @@
-/*
- * Hello Triangle - Código adaptado de:
- *   - https://learnopengl.com/#!Getting-started/Hello-Triangle
- *   - https://antongerdelan.net/opengl/glcontext2.html
- *
- * Adaptado por: Rossana Baptista Queiroz
- *
- * Disciplinas:
- *   - Processamento Gráfico (Ciência da Computação - Híbrido)
- *   - Processamento Gráfico: Fundamentos (Ciência da Computação - Presencial)
- *   - Fundamentos de Computação Gráfica (Jogos Digitais)
- *
- * Descrição:
- *   Este código é o "Olá Mundo" da Computação Gráfica, utilizando OpenGL Moderna.
- *   No pipeline programável, o desenvolvedor pode implementar as etapas de
- *   Processamento de Geometria e Processamento de Pixel utilizando shaders.
- *   Um programa de shader precisa ter, obrigatoriamente, um Vertex Shader e um Fragment Shader,
- *   enquanto outros shaders, como o de geometria, são opcionais.
- *
- * Histórico:
- *   - Versão inicial: 07/04/2017
- *   - Última atualização: 18/03/2025
- *
- */
-
  #include <iostream>
  #include <string>
  #include <assert.h>
@@ -141,27 +116,6 @@
      // Loop da aplicação - "game loop"
      while (!glfwWindowShouldClose(window))
      {
-         // Este trecho de código é totalmente opcional: calcula e mostra a contagem do FPS na barra de título
-         {
-             double curr_s = glfwGetTime();		// Obtém o tempo atual.
-             double elapsed_s = curr_s - prev_s; // Calcula o tempo decorrido desde o último frame.
-             prev_s = curr_s;					// Atualiza o "tempo anterior" para o próximo frame.
- 
-             // Exibe o FPS, mas não a cada frame, para evitar oscilações excessivas.
-             title_countdown_s -= elapsed_s;
-             if (title_countdown_s <= 0.0 && elapsed_s > 0.0)
-             {
-                 double fps = 1.0 / elapsed_s; // Calcula o FPS com base no tempo decorrido.
- 
-                 // Cria uma string e define o FPS como título da janela.
-                 char tmp[256];
-                 sprintf(tmp, "Dois Triangulos -- Ender\tFPS %.2lf", fps);
-                 glfwSetWindowTitle(window, tmp);
- 
-                 title_countdown_s = 0.1; // Reinicia o temporizador para atualizar o título periodicamente.
-             }
-         }
- 
          // Checa se houveram eventos de input (key pressed, mouse moved etc.) e chama as funções de callback correspondentes
          glfwPollEvents();
  
