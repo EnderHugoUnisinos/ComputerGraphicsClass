@@ -2,8 +2,10 @@
 #include <string>
 #include <assert.h>
 #include <cmath>
+#include <vector>
 
 using namespace std;
+
 
 // GLAD
 #include <glad/glad.h>
@@ -23,30 +25,43 @@ using namespace glm;
 #include <stb_image.h>
 
 enum direction {UP, DOWN, LEFT, RIGHT};
+
 struct Sprite 
 {
 	GLuint VAO;
 	GLuint texID;
 	vec3 pos;
+	vec3 prevpos;
 	vec3 dimensions;
     direction moving;
+    direction prevmoving;
 	float angle;
 	float vel;
+
+    vec3 getPMax() {
+        double xmax = pos.x + dimensions.x/2;
+        double ymax = pos.y + dimensions.y/2;
+        return vec3(xmax, ymax, 0);
+    }
+    vec3 getPMin() {
+        double xmin = pos.x - dimensions.x/2;
+        double ymin = pos.y - dimensions.y/2;
+        return vec3(xmin, ymin, 0);
+    }
 };
 
-// Protótipo da função de callback de teclado
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mode);
 
-// Protótipos das funções
 int setupShader();
 int setupSprite();
 int loadTexture(string filePath);
+bool checkCollision(Sprite &one, Sprite &two);
 void drawSprite(GLuint shaderID, Sprite spr);
+void generateFruit(Sprite &food);
+void generateBody(vec3 prevPos, std::vector<Sprite>& snakeBody);
 
-// Dimensões da janela (pode ser alterado em tempo de execução)
 const GLuint WIDTH = 816, HEIGHT = 600;
 
-// Código fonte do Vertex Shader (em GLSL): ainda hardcoded
 const GLchar *vertexShaderSource = R"(
  #version 400
  layout (location = 0) in vec2 position;
@@ -62,7 +77,6 @@ const GLchar *vertexShaderSource = R"(
  }
  )";
 
-// Código fonte do Fragment Shader (em GLSL): ainda hardcoded
 const GLchar *fragmentShaderSource = R"(
  #version 400
 in vec2 tex_coord;
@@ -79,32 +93,13 @@ bool keys[1024];
 float FPS = 12.0;
 float lastTime = 0.0;
 
-// Função MAIN
 int main()
 {
-	// Inicialização da GLFW
 	glfwInit();
-
-	// Muita atenção aqui: alguns ambientes não aceitam essas configurações
-	// Você deve adaptar para a versão do OpenGL suportada por sua placa
-	// Sugestão: comente essas linhas de código para desobrir a versão e
-	// depois atualize (por exemplo: 4.5 com 4 e 5)
-	// glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	// glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-	// glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	// glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-	// Ativa a suavização de serrilhado (MSAA) com 8 amostras por pixel
 	glfwWindowHint(GLFW_SAMPLES, 8);
-
-	// Essencial para computadores da Apple
-	// #ifdef __APPLE__
-	//	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	// #endif
 
 	for(int i=0; i<1024;i++) { keys[i] = false; }
 
-	// Criação da janela GLFW
 	GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "Snake! -- Ender", nullptr, nullptr);
 	if (!window)
 	{
@@ -113,34 +108,28 @@ int main()
 		return -1;
 	}
 	glfwMakeContextCurrent(window);
-
-	// Fazendo o registro da função de callback para a janela GLFW
 	glfwSetKeyCallback(window, key_callback);
 
-	// GLAD: carrega todos os ponteiros d funções da OpenGL
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
 		std::cerr << "Falha ao inicializar GLAD" << std::endl;
 		return -1;
 	}
 
-	// Obtendo as informações de versão
 	const GLubyte *renderer = glGetString(GL_RENDERER); /* get renderer string */
 	const GLubyte *version = glGetString(GL_VERSION);	/* version as a string */
 	cout << "Renderer: " << renderer << endl;
 	cout << "OpenGL version supported " << version << endl;
 
-	// Definindo as dimensões da viewport com as mesmas dimensões da janela da aplicação
 	int width, height;
 	glfwGetFramebufferSize(window, &width, &height);
 	glViewport(0, 0, width, height);
 
-	// Compilando e buildando o programa de shader
 	GLuint shaderID = setupShader();
 
-	Sprite background, spr1, spr2;
+	Sprite background, snakeHead, food;
+    std::vector<Sprite> snakeBody;
 
-	// Gerando um buffer simples, com a geometria de um triângulo
 	GLuint VAO = setupSprite();
 
 	background.VAO = VAO;
@@ -149,21 +138,20 @@ int main()
 	background.dimensions = vec3(812 , 616, 1);
 	background.angle = 0.0;
 
-	// Carregando uma textura
-	spr1.VAO = VAO;
-	spr1.texID = loadTexture("../assets/sprites/snakeHead.png");
-	spr1.pos = vec3(28*14+14,28*11+14,0);
-	spr1.dimensions = vec3(7 * 4, 7 * 4, 1);
-	spr1.vel = 28;
-	spr1.angle = 0.0;
+	snakeHead.VAO = VAO;
+	snakeHead.texID = loadTexture("../assets/sprites/snakeHead.png");
+	snakeHead.pos = vec3(28*14+14,28*11+14,0);
+	snakeHead.dimensions = vec3(28-1, 28-1, 1);
+	snakeHead.vel = 28;
+	snakeHead.angle = 0.0;
+    snakeHead.moving = RIGHT;
     
-	// Carregando uma textura
-	spr2.VAO = VAO;
-	spr2.texID = loadTexture("../assets/sprites/food.png");
-	spr2.pos = vec3(28*10+14,28*11+14,0);
-	spr2.dimensions = vec3(7 * 4, 7 * 4, 1);
-	spr2.vel = 1.5;
-	spr2.angle = 0.0;
+	food.VAO = VAO;
+	food.texID = loadTexture("../assets/sprites/food.png");
+	food.pos = vec3(28*20+14,28*11+14,0);
+	food.dimensions = vec3(28-1, 28-1, 1);
+	food.vel = 1.5;
+	food.angle = 0.0;
 
 	glUseProgram(shaderID); // Reseta o estado do shader para evitar problemas futuros
 
@@ -172,10 +160,8 @@ int main()
 
 	float colorValue = 0.0;
 
-	// Ativando o primeiro buffer de textura do OpenGL
 	glActiveTexture(GL_TEXTURE0);
 
-	// Criando a variável uniform pra mandar a textura pro shader
 	glUniform1i(glGetUniformLocation(shaderID, "tex_buff"), 0);
 
 	// Criação da matriz de projeção paralela ortográfica
@@ -192,7 +178,12 @@ int main()
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_ALWAYS);
 
+    //Seed rand
+    srand(static_cast<unsigned int>(time(NULL))); 
+
 	// Loop da aplicação - "game loop"
+    double accumulator = 0.0;
+
 	while (!glfwWindowShouldClose(window))
 	{
 		// Checa se houveram eventos de input (key pressed, mouse moved etc.) e chama as funções de callback correspondentes
@@ -201,35 +192,104 @@ int main()
 		// Limpa o buffer de cor
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // cor de fundo
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        double current_s = glfwGetTime();
         
+        // Detect keypresses
 		if (keys[GLFW_KEY_LEFT] == true || keys[GLFW_KEY_A] == true)
 		{
-			spr1.moving = LEFT;		
+            if (snakeHead.prevmoving != RIGHT) {
+                snakeHead.moving = LEFT;		
+            }
 		}
 		if (keys[GLFW_KEY_RIGHT] == true || keys[GLFW_KEY_D] == true)
 		{
-			spr1.moving = RIGHT;	
+            if (snakeHead.prevmoving != LEFT) {
+                snakeHead.moving = RIGHT;	
+            }
 		}
 		if (keys[GLFW_KEY_UP] == true || keys[GLFW_KEY_W] == true)
 		{
-			spr1.moving = UP;
+            if (snakeHead.prevmoving != DOWN) {
+                snakeHead.moving = UP;
+            }
 		}
 		if (keys[GLFW_KEY_DOWN] == true || keys[GLFW_KEY_S] == true)
 		{
-			spr1.moving = DOWN;	
+            if (snakeHead.prevmoving != UP) {
+                snakeHead.moving = DOWN;	
+            }
 		}
 		glUniform2f(glGetUniformLocation(shaderID, "offset_tex"),0.0,0.0);
 
+        // Save snake position
+        snakeHead.prevpos = snakeHead.pos;
 
-        
-        if (spr1.pos.x < 0 || spr1.pos.x > 812 || spr1.pos.y < 0 || spr1.pos.y > 616)
+        // Move snake after "refresh speed"
+        double deltaTime = current_s - prev_s;
+        prev_s = current_s;
+        accumulator += deltaTime;
+        const double refreshSpeed = 1 / FPS;
+        while (accumulator >= refreshSpeed) {
+        // Update snake position based on direction
+                switch (snakeHead.moving) {
+                case LEFT:
+                    snakeHead.pos.x -= snakeHead.vel;
+                    break;
+                case RIGHT:
+                    snakeHead.pos.x += snakeHead.vel;
+                    break;
+                case UP:
+                    snakeHead.pos.y += snakeHead.vel;
+                    break;
+                case DOWN:
+                    snakeHead.pos.y -= snakeHead.vel;
+                    break;
+            }
+            snakeHead.prevmoving = snakeHead.moving;
+            accumulator -= refreshSpeed;
+
+            for (int i=0; i < snakeBody.size(); i++)
+            {
+                snakeBody[i].prevpos = snakeBody[i].pos;
+                if (i == 0) {
+                    snakeBody[i].pos = snakeHead.prevpos;
+                }
+                else 
+                {
+                    snakeBody[i].pos = snakeBody[i-1].prevpos;
+                }
+            }
+
+            if (checkCollision(snakeHead, food)) {
+                generateFruit(food);
+                if (snakeBody.size() > 0) {
+                    generateBody(snakeBody[(snakeBody.size())-1].prevpos, snakeBody);
+                }
+                else {
+                    generateBody(snakeHead.prevpos, snakeBody);
+                }
+            }
+        }
+        // Snake out of bounds
+        if (snakeHead.pos.x < 0 || snakeHead.pos.x > 812 || snakeHead.pos.y < 0 || snakeHead.pos.y > 616)
         {
 		    glfwSetWindowShouldClose(window, GL_TRUE);
         }
+        // Snake self collide
+        for (int i=0; i < snakeBody.size(); i++){
+            if (checkCollision(snakeHead, snakeBody[i]))
+            {
+    		    glfwSetWindowShouldClose(window, GL_TRUE);
+            }
+        }
 
 		drawSprite(shaderID,background);
-		drawSprite(shaderID,spr1);
-		drawSprite(shaderID,spr2);
+		drawSprite(shaderID,snakeHead);
+		drawSprite(shaderID,food);
+        for (int i=0; i < snakeBody.size(); i++){
+            drawSprite(shaderID,snakeBody[i]);
+        }
 		glfwSwapBuffers(window);
 	}
 	// Finaliza a execução da GLFW, limpando os recursos alocados por ela
@@ -237,9 +297,43 @@ int main()
 	return 0;
 }
 
-// Função de callback de teclado - só pode ter uma instância (deve ser estática se
-// estiver dentro de uma classe) - É chamada sempre que uma tecla for pressionada
-// ou solta via GLFW
+bool checkCollision(Sprite &one, Sprite &two)
+{
+    // collision x-axis?
+    bool collisionX = one.getPMax().x >=
+    two.getPMin().x &&
+    two.getPMax().x >= one.getPMin().x;
+    // collision y-axis?
+    bool collisionY = one.getPMax().y >=
+    two.getPMin().y &&
+    two.getPMax().y >= one.getPMin().y;
+    // collision only if on both axes
+    return collisionX && collisionY;
+}
+
+void generateFruit(Sprite &food) 
+{
+    int cols = 29; //W28
+    int rows = 22; //H21
+
+    int col = rand() % cols;
+    int row = rand() % rows;
+
+    food.pos.x = 14 + col * 28;
+    food.pos.y = 14 + row * 28;
+}
+
+void generateBody(vec3 prevHead, std::vector<Sprite>& snakeBody) {
+	GLuint VAO = setupSprite();
+    Sprite newBody;
+	newBody.VAO = VAO;
+	newBody.texID = loadTexture("../assets/sprites/snakeBody.png");
+	newBody.pos = prevHead;
+	newBody.dimensions = vec3(7 * 4-1, 7 * 4-1, 1);
+    newBody.angle = 0;
+    snakeBody.push_back(newBody);
+}
+
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mode)
 {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
@@ -255,11 +349,6 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 	}
 }
 
-// Esta função está bastante hardcoded - objetivo é compilar e "buildar" um programa de
-//  shader simples e único neste exemplo de código
-//  O código fonte do vertex e fragment shader está nos arrays vertexShaderSource e
-//  fragmentShader source no iniçio deste arquivo
-//  A função retorna o identificador do programa de shader
 int setupShader()
 {
 	// Vertex shader
@@ -307,9 +396,6 @@ int setupShader()
 	return shaderProgram;
 }
 
-// Apenas atributo coordenada nos vértices
-// 1 VBO com as coordenadas, VAO com apenas 1 ponteiro para atributo
-// A função retorna o identificador do VAO
 int setupSprite()
 {
 	// Aqui setamos as coordenadas x, y e z do triângulo e as armazenamos de forma
