@@ -1,7 +1,6 @@
 #include <iostream>
 #include <string>
 #include <assert.h>
-#include <cmath>
 #include <vector>
 
 using namespace std;
@@ -133,13 +132,13 @@ int main()
 	GLuint VAO = setupSprite();
 
 	background.VAO = VAO;
-	background.texID = loadTexture("../assets/tex/background.png");
+	background.texID = loadTexture("../../assets/tex/background.png");
 	background.pos = vec3(406,308,0);
 	background.dimensions = vec3(812 , 616, 1);
 	background.angle = 0.0;
 
 	snakeHead.VAO = VAO;
-	snakeHead.texID = loadTexture("../assets/sprites/snakeHead.png");
+	snakeHead.texID = loadTexture("../../assets/sprites/snakeHead.png");
 	snakeHead.pos = vec3(28*14+14,28*11+14,0);
 	snakeHead.dimensions = vec3(28-1, 28-1, 1);
 	snakeHead.vel = 28;
@@ -147,7 +146,7 @@ int main()
     snakeHead.moving = RIGHT;
     
 	food.VAO = VAO;
-	food.texID = loadTexture("../assets/sprites/food.png");
+	food.texID = loadTexture("../../assets/sprites/food.png");
 	food.pos = vec3(28*20+14,28*11+14,0);
 	food.dimensions = vec3(28-1, 28-1, 1);
 	food.vel = 1.5;
@@ -229,7 +228,7 @@ int main()
         double deltaTime = current_s - prev_s;
         prev_s = current_s;
         accumulator += deltaTime;
-        const double refreshSpeed = 1 / FPS;
+        const double refreshSpeed = 3 / FPS;
         while (accumulator >= refreshSpeed) {
         // Update snake position based on direction
                 switch (snakeHead.moving) {
@@ -327,7 +326,7 @@ void generateBody(vec3 prevHead, std::vector<Sprite>& snakeBody) {
 	GLuint VAO = setupSprite();
     Sprite newBody;
 	newBody.VAO = VAO;
-	newBody.texID = loadTexture("../assets/sprites/snakeBody.png");
+	newBody.texID = loadTexture("../../assets/sprites/snakeBody.png");
 	newBody.pos = prevHead;
 	newBody.dimensions = vec3(7 * 4-1, 7 * 4-1, 1);
     newBody.angle = 0;

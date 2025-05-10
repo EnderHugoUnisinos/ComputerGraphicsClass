@@ -47,14 +47,15 @@ include_directories(${stb_image_SOURCE_DIR})
 
 # Lista de exemplos/exercícios podem ser colocados aqui também
 set(EXERCISES
-    HelloTriangle
-    HelloTransform
-    Hello2Triangles
-    HelloTexture
-    HelloSprite
-    HelloSpritesheet
-    Lista1/Ex6
-    Lista1/Ex9
+    Lista1/Ex6,
+    Lista1/Ex7a,
+    Lista1/Ex7a,
+    Lista1/Ex7c,
+    Lista1/Ex7d,
+    Lista1/Ex8,
+    Lista1/Ex9,
+    Lista1/Ex10,
+    TbGA/Snake
 )
 
 add_compile_options(-Wno-pragmas)
